@@ -1,5 +1,7 @@
 #include "bit_io.h"
 
+#include <stdexcept>
+
 // ---------- BitWriter ----------
 
 BitWriter::BitWriter(const std::string& filename)
@@ -75,7 +77,11 @@ bool BitReader::readBit(bool& bit) {
 }
 
 unsigned char BitReader::readByte() {
-    return static_cast<unsigned char>(in_.get());
+    int c = in_.get();
+    if (c == EOF) {
+        throw std::runtime_error("Неожиданный конец файла при чтении заголовка");
+    }
+    return static_cast<unsigned char>(c);
 }
 
 uint16_t BitReader::readUint16() {

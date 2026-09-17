@@ -158,6 +158,53 @@ void test_decompress_truncated_data_throws() {
     std::remove("trunc_rest.tmp");
 }
 
+void test_decompress_corrupted_header_throws() {
+    // uniqueCount не может быть больше 256 (число возможных байтовых
+    // значений) — заголовок с таким значением означает повреждённый файл
+    // или файл не в формате .huf, разжатие должно бросить исключение,
+    // а не тихо читать мусор.
+    std::vector<unsigned char> corrupted = {
+        0,    0,    0, 0, 0, 0, 0, 10,  // originalSize = 10 (big-endian uint64)
+        0xFF, 0xFF,  // uniqueCount = 65535 — заведомо некорректно
+    };
+    std::string compressed = "corrupt_header.tmp";
+    writeFile(compressed, corrupted);
+
+    bool threw = false;
+    try {
+        Archiver::decompress(compressed, "corrupt_header_rest.tmp");
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    CHECK(threw);
+
+    std::remove(compressed.c_str());
+    std::remove("corrupt_header_rest.tmp");
+}
+
+void test_decompress_random_garbage_throws() {
+    // Файл, вообще не являющийся .huf-архивом (например, если пользователь
+    // случайно передал не тот файл), должен приводить к исключению, а не
+    // к тихой записи бессмысленного результата.
+    std::vector<unsigned char> garbage;
+    for (int i = 0; i < 20; ++i) {
+        garbage.push_back(static_cast<unsigned char>((i * 73 + 11) % 256));
+    }
+    std::string compressed = "garbage.tmp";
+    writeFile(compressed, garbage);
+
+    bool threw = false;
+    try {
+        Archiver::decompress(compressed, "garbage_rest.tmp");
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    CHECK(threw);
+
+    std::remove(compressed.c_str());
+    std::remove("garbage_rest.tmp");
+}
+
 int main() {
     RUN_TEST(test_roundtrip_text);
     RUN_TEST(test_roundtrip_empty_file);
@@ -167,5 +214,7 @@ int main() {
     RUN_TEST(test_compressed_file_is_smaller_for_text);
     RUN_TEST(test_compress_missing_input_throws);
     RUN_TEST(test_decompress_truncated_data_throws);
+    RUN_TEST(test_decompress_corrupted_header_throws);
+    RUN_TEST(test_decompress_random_garbage_throws);
     return reportResults();
 }
