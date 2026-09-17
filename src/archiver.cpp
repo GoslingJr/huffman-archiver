@@ -2,31 +2,31 @@
 #include "bit_io.h"
 #include "huffman_tree.h"
 
+#include <array>
+#include <cstdint>
 #include <fstream>
-#include <iostream>
 #include <iterator>
+#include <stdexcept>
 #include <vector>
 
-bool Archiver::compress(const std::string& inputPath, const std::string& outputPath) {
+void Archiver::compress(const std::string& inputPath, const std::string& outputPath) {
     std::ifstream in(inputPath, std::ios::binary);
     if (!in.is_open()) {
-        std::cerr << "Не удалось открыть входной файл: " << inputPath << std::endl;
-        return false;
+        throw std::runtime_error("Не удалось открыть входной файл: " + inputPath);
     }
 
     std::vector<unsigned char> data((std::istreambuf_iterator<char>(in)),
                                      std::istreambuf_iterator<char>());
     in.close();
 
-    FrequencyTable frequencies{};
+    std::array<uint64_t, 256> frequencies{};
     for (unsigned char byte : data) {
         frequencies[byte]++;
     }
 
     BitWriter writer(outputPath);
     if (!writer.isOpen()) {
-        std::cerr << "Не удалось создать выходной файл: " << outputPath << std::endl;
-        return false;
+        throw std::runtime_error("Не удалось создать выходной файл: " + outputPath);
     }
 
     uint64_t originalSize = data.size();
@@ -34,7 +34,7 @@ bool Archiver::compress(const std::string& inputPath, const std::string& outputP
 
     if (originalSize == 0) {
         writer.writeUint16(0);
-        return true;
+        return;
     }
 
     uint16_t uniqueCount = 0;
@@ -54,7 +54,7 @@ bool Archiver::compress(const std::string& inputPath, const std::string& outputP
 
     HuffmanTree tree;
     tree.build(frequencies);
-    CodeTable codes = tree.buildCodeTable();
+    std::unordered_map<unsigned char, std::string> codes = tree.buildCodeTable();
 
     for (unsigned char byte : data) {
         const std::string& code = codes[byte];
@@ -64,30 +64,27 @@ bool Archiver::compress(const std::string& inputPath, const std::string& outputP
     }
 
     writer.flush();
-    return true;
 }
 
-bool Archiver::decompress(const std::string& inputPath, const std::string& outputPath) {
+void Archiver::decompress(const std::string& inputPath, const std::string& outputPath) {
     BitReader reader(inputPath);
     if (!reader.isOpen()) {
-        std::cerr << "Не удалось открыть входной файл: " << inputPath << std::endl;
-        return false;
+        throw std::runtime_error("Не удалось открыть входной файл: " + inputPath);
     }
 
     std::ofstream out(outputPath, std::ios::binary);
     if (!out.is_open()) {
-        std::cerr << "Не удалось создать выходной файл: " << outputPath << std::endl;
-        return false;
+        throw std::runtime_error("Не удалось создать выходной файл: " + outputPath);
     }
 
     uint64_t originalSize = reader.readUint64();
     uint16_t uniqueCount = reader.readUint16();
 
     if (originalSize == 0 || uniqueCount == 0) {
-        return true;  // исходный файл был пустым
+        return;  // исходный файл был пустым
     }
 
-    FrequencyTable frequencies{};
+    std::array<uint64_t, 256> frequencies{};
     for (uint16_t i = 0; i < uniqueCount; ++i) {
         unsigned char symbol = reader.readByte();
         uint64_t frequency = reader.readUint64();
@@ -96,33 +93,8 @@ bool Archiver::decompress(const std::string& inputPath, const std::string& outpu
 
     HuffmanTree tree;
     tree.build(frequencies);
-    HuffmanNodePtr root = tree.getRoot();
 
-    uint64_t decoded = 0;
-
-    if (root->isLeaf()) {
-        // Особый случай: единственный уникальный символ во всём файле.
-        while (decoded < originalSize) {
-            bool bit;
-            if (!reader.readBit(bit)) {
-                break;
-            }
-            out.put(static_cast<char>(root->symbol));
-            decoded++;
-        }
-        return true;
+    for (uint64_t decoded = 0; decoded < originalSize; ++decoded) {
+        out.put(static_cast<char>(tree.decodeSymbol(reader)));
     }
-
-    HuffmanNodePtr current = root;
-    bool bit;
-    while (decoded < originalSize && reader.readBit(bit)) {
-        current = bit ? current->right : current->left;
-        if (current->isLeaf()) {
-            out.put(static_cast<char>(current->symbol));
-            decoded++;
-            current = root;
-        }
-    }
-
-    return true;
 }

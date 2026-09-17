@@ -5,39 +5,63 @@
 #include <string>
 #include <unordered_map>
 
-// Узел двоичного дерева Хаффмана.
-// Для листьев symbol содержит значащий байт, для внутренних узлов symbol не используется.
-struct HuffmanNode {
-    unsigned char symbol = 0;
-    uint64_t frequency = 0;
-    std::shared_ptr<HuffmanNode> left = nullptr;
-    std::shared_ptr<HuffmanNode> right = nullptr;
+class BitReader;
 
-    bool isLeaf() const {
-        return left == nullptr && right == nullptr;
-    }
-};
-
-using HuffmanNodePtr = std::shared_ptr<HuffmanNode>;
-
-// Таблица частот: индекс — значение байта (0..255), значение — сколько раз он встретился.
-using FrequencyTable = std::array<uint64_t, 256>;
-
-// Таблица префиксных кодов: символ -> строка из '0' и '1'.
-using CodeTable = std::unordered_map<unsigned char, std::string>;
-
+/**
+ * @brief Дерево Хаффмана.
+ *
+ * Строится по таблице частот символов. Умеет выдавать таблицу префиксных
+ * кодов (для сжатия) и декодировать символы из битового потока (для
+ * разжатия), не раскрывая наружу своё внутреннее устройство: структура
+ * узла — деталь реализации и наружу не отдаётся.
+ */
 class HuffmanTree {
 public:
-    // Строит дерево Хаффмана по таблице частот.
-    void build(const FrequencyTable& frequencies);
+    /**
+     * @brief Строит дерево Хаффмана по таблице частот.
+     * @param frequencies таблица частот: индекс — значение байта (0..255),
+     *        значение — сколько раз он встретился.
+     */
+    void build(const std::array<uint64_t, 256>& frequencies);
 
-    // Обходит дерево и строит таблицу префиксных кодов.
-    CodeTable buildCodeTable() const;
+    /**
+     * @brief Обходит дерево и строит таблицу префиксных кодов.
+     * @return таблица "символ -> строка из '0' и '1'"; пуста, если дерево
+     *         не было построено (build ещё не вызывался или таблица частот
+     *         была пустой).
+     */
+    std::unordered_map<unsigned char, std::string> buildCodeTable() const;
 
-    HuffmanNodePtr getRoot() const { return root_; }
+    /**
+     * @brief Декодирует один символ, читая биты из reader и спускаясь по
+     *        дереву от корня до листа.
+     * @param reader источник битов (тот же поток, что был записан
+     *        соответствующими кодами при сжатии).
+     * @return декодированный символ.
+     * @throws std::runtime_error если дерево не построено, либо поток
+     *         данных закончился раньше, чем удалось дойти до листа
+     *         (повреждённые или обрезанные сжатые данные).
+     */
+    unsigned char decodeSymbol(BitReader& reader) const;
+
+    /// @return true, если дерево не построено (пустая таблица частот).
+    bool empty() const { return root_ == nullptr; }
 
 private:
-    HuffmanNodePtr root_;
+    // Узел двоичного дерева Хаффмана — деталь реализации, наружу не отдаётся.
+    // Для листьев symbol содержит значащий байт, для внутренних узлов
+    // symbol не используется.
+    struct Node {
+        unsigned char symbol = 0;
+        uint64_t frequency = 0;
+        std::shared_ptr<Node> left = nullptr;
+        std::shared_ptr<Node> right = nullptr;
 
-    void collectCodes(const HuffmanNodePtr& node, const std::string& code, CodeTable& table) const;
+        bool isLeaf() const { return left == nullptr && right == nullptr; }
+    };
+
+    std::shared_ptr<Node> root_;
+
+    void collectCodes(const std::shared_ptr<Node>& node, const std::string& code,
+                       std::unordered_map<unsigned char, std::string>& table) const;
 };

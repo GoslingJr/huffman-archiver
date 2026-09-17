@@ -1,31 +1,31 @@
 #include "huffman_tree.h"
+#include "bit_io.h"
+
 #include <queue>
+#include <stdexcept>
 #include <vector>
 
-namespace {
-
-// Компаратор для очереди с приоритетами: наверху должен быть узел с
-// наименьшей частотой (min-heap). При равных частотах сравниваем по
-// символу — это делает построение дерева детерминированным: одна и та же
-// таблица частот всегда даёт одно и то же дерево (важно, потому что дерево
-// заново строится при разжатии файла).
-struct Compare {
-    bool operator()(const HuffmanNodePtr& a, const HuffmanNodePtr& b) const {
+void HuffmanTree::build(const std::array<uint64_t, 256>& frequencies) {
+    // Компаратор для очереди с приоритетами: наверху должен быть узел с
+    // наименьшей частотой (min-heap). При равных частотах сравниваем по
+    // символу — это делает построение дерева детерминированным: одна и та
+    // же таблица частот всегда даёт одно и то же дерево (важно, потому что
+    // дерево заново строится при разжатии файла). Компаратор объявлен
+    // локально в build(), а не отдельным типом снаружи класса, — снаружи
+    // класса нет доступа к приватному типу Node.
+    auto compare = [](const std::shared_ptr<Node>& a, const std::shared_ptr<Node>& b) {
         if (a->frequency != b->frequency) {
             return a->frequency > b->frequency;
         }
         return a->symbol > b->symbol;
-    }
-};
+    };
 
-}  // namespace
-
-void HuffmanTree::build(const FrequencyTable& frequencies) {
-    std::priority_queue<HuffmanNodePtr, std::vector<HuffmanNodePtr>, Compare> queue;
+    std::priority_queue<std::shared_ptr<Node>, std::vector<std::shared_ptr<Node>>, decltype(compare)>
+        queue(compare);
 
     for (int symbol = 0; symbol < 256; ++symbol) {
         if (frequencies[symbol] > 0) {
-            auto node = std::make_shared<HuffmanNode>();
+            auto node = std::make_shared<Node>();
             node->symbol = static_cast<unsigned char>(symbol);
             node->frequency = frequencies[symbol];
             queue.push(node);
@@ -40,12 +40,12 @@ void HuffmanTree::build(const FrequencyTable& frequencies) {
     // Пока в очереди больше одного дерева — берём два самых редких узла
     // и склеиваем их в один новый узел с суммарной частотой.
     while (queue.size() > 1) {
-        HuffmanNodePtr left = queue.top();
+        std::shared_ptr<Node> left = queue.top();
         queue.pop();
-        HuffmanNodePtr right = queue.top();
+        std::shared_ptr<Node> right = queue.top();
         queue.pop();
 
-        auto parent = std::make_shared<HuffmanNode>();
+        auto parent = std::make_shared<Node>();
         parent->frequency = left->frequency + right->frequency;
         parent->left = left;
         parent->right = right;
@@ -56,8 +56,8 @@ void HuffmanTree::build(const FrequencyTable& frequencies) {
     root_ = queue.top();
 }
 
-CodeTable HuffmanTree::buildCodeTable() const {
-    CodeTable table;
+std::unordered_map<unsigned char, std::string> HuffmanTree::buildCodeTable() const {
+    std::unordered_map<unsigned char, std::string> table;
     if (root_ == nullptr) {
         return table;
     }
@@ -74,8 +74,8 @@ CodeTable HuffmanTree::buildCodeTable() const {
     return table;
 }
 
-void HuffmanTree::collectCodes(const HuffmanNodePtr& node, const std::string& code,
-                                CodeTable& table) const {
+void HuffmanTree::collectCodes(const std::shared_ptr<Node>& node, const std::string& code,
+                                std::unordered_map<unsigned char, std::string>& table) const {
     if (node->isLeaf()) {
         table[node->symbol] = code;
         return;
@@ -86,4 +86,32 @@ void HuffmanTree::collectCodes(const HuffmanNodePtr& node, const std::string& co
     if (node->right) {
         collectCodes(node->right, code + "1", table);
     }
+}
+
+unsigned char HuffmanTree::decodeSymbol(BitReader& reader) const {
+    if (root_ == nullptr) {
+        throw std::runtime_error("Дерево Хаффмана не построено");
+    }
+
+    if (root_->isLeaf()) {
+        // Особый случай: единственный уникальный символ во всём файле —
+        // дерево без рёбер. При сжатии для него был записан один бит на
+        // символ (см. buildCodeTable), поэтому здесь читаем и отбрасываем
+        // ровно один бит, а возвращаем единственный существующий символ.
+        bool bit;
+        if (!reader.readBit(bit)) {
+            throw std::runtime_error("Неожиданный конец сжатых данных");
+        }
+        return root_->symbol;
+    }
+
+    std::shared_ptr<Node> current = root_;
+    while (!current->isLeaf()) {
+        bool bit;
+        if (!reader.readBit(bit)) {
+            throw std::runtime_error("Неожиданный конец сжатых данных");
+        }
+        current = bit ? current->right : current->left;
+    }
+    return current->symbol;
 }

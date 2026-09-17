@@ -1,9 +1,14 @@
 #include "huffman_tree.h"
 #include "test_utils.h"
 
+#include <array>
+#include <cstdint>
+#include <string>
+#include <unordered_map>
+
 // Проверяет, что ни один код в таблице не является префиксом другого —
 // это ключевое свойство, обеспечивающее однозначную декодируемость.
-bool isPrefixFree(const CodeTable& table) {
+bool isPrefixFree(const std::unordered_map<unsigned char, std::string>& table) {
     for (const auto& [symbolA, codeA] : table) {
         for (const auto& [symbolB, codeB] : table) {
             if (symbolA == symbolB) {
@@ -19,7 +24,7 @@ bool isPrefixFree(const CodeTable& table) {
 
 void test_classic_frequencies() {
     // Классический пример из учебников по алгоритму Хаффмана
-    FrequencyTable freq{};
+    std::array<uint64_t, 256> freq{};
     freq['a'] = 5;
     freq['b'] = 9;
     freq['c'] = 12;
@@ -29,7 +34,7 @@ void test_classic_frequencies() {
 
     HuffmanTree tree;
     tree.build(freq);
-    CodeTable codes = tree.buildCodeTable();
+    std::unordered_map<unsigned char, std::string> codes = tree.buildCodeTable();
 
     CHECK(codes.size() == 6);
     CHECK(isPrefixFree(codes));
@@ -38,25 +43,25 @@ void test_classic_frequencies() {
 }
 
 void test_single_symbol_gets_one_bit_code() {
-    FrequencyTable freq{};
+    std::array<uint64_t, 256> freq{};
     freq['x'] = 100;
 
     HuffmanTree tree;
     tree.build(freq);
-    CodeTable codes = tree.buildCodeTable();
+    std::unordered_map<unsigned char, std::string> codes = tree.buildCodeTable();
 
     CHECK(codes.size() == 1);
     CHECK(codes['x'] == "0");
 }
 
 void test_two_symbols_get_single_bit_codes() {
-    FrequencyTable freq{};
+    std::array<uint64_t, 256> freq{};
     freq['a'] = 1;
     freq['b'] = 1;
 
     HuffmanTree tree;
     tree.build(freq);
-    CodeTable codes = tree.buildCodeTable();
+    std::unordered_map<unsigned char, std::string> codes = tree.buildCodeTable();
 
     CHECK(codes.size() == 2);
     CHECK(isPrefixFree(codes));
@@ -65,20 +70,20 @@ void test_two_symbols_get_single_bit_codes() {
 }
 
 void test_empty_frequency_table_gives_empty_tree() {
-    FrequencyTable freq{};  // все частоты равны нулю
+    std::array<uint64_t, 256> freq{};  // все частоты равны нулю
 
     HuffmanTree tree;
     tree.build(freq);
-    CodeTable codes = tree.buildCodeTable();
+    std::unordered_map<unsigned char, std::string> codes = tree.buildCodeTable();
 
     CHECK(codes.empty());
-    CHECK(tree.getRoot() == nullptr);
+    CHECK(tree.empty());
 }
 
 void test_build_is_deterministic() {
     // Одна и та же таблица частот должна давать одинаковое дерево
     // (это важно: дерево перестраивается заново при разжатии).
-    FrequencyTable freq{};
+    std::array<uint64_t, 256> freq{};
     freq['a'] = 3;
     freq['b'] = 3;
     freq['c'] = 7;
@@ -87,8 +92,8 @@ void test_build_is_deterministic() {
     tree1.build(freq);
     tree2.build(freq);
 
-    CodeTable codes1 = tree1.buildCodeTable();
-    CodeTable codes2 = tree2.buildCodeTable();
+    std::unordered_map<unsigned char, std::string> codes1 = tree1.buildCodeTable();
+    std::unordered_map<unsigned char, std::string> codes2 = tree2.buildCodeTable();
 
     CHECK(codes1.size() == codes2.size());
     for (const auto& [symbol, code] : codes1) {

@@ -1,3 +1,4 @@
+#include <exception>
 #include <iostream>
 #include <string>
 
@@ -24,22 +25,24 @@ int main(int argc, char* argv[]) {
     std::string input = argv[2];
     std::string output = argv[3];
 
-    bool ok = false;
-
-    if (mode == "-c") {
-        ok = Archiver::compress(input, output);
-        if (ok) {
+    // Весь консольный ввод-вывод — здесь, в main; библиотечный код
+    // (Archiver и всё под ним) ничего не печатает и сообщает об ошибках
+    // через исключения.
+    try {
+        if (mode == "-c") {
+            Archiver::compress(input, output);
             std::cout << "Файл успешно сжат: " << output << std::endl;
-        }
-    } else if (mode == "-d") {
-        ok = Archiver::decompress(input, output);
-        if (ok) {
+        } else if (mode == "-d") {
+            Archiver::decompress(input, output);
             std::cout << "Файл успешно разжат: " << output << std::endl;
+        } else {
+            printUsage(argv[0]);
+            return 1;
         }
-    } else {
-        printUsage(argv[0]);
+    } catch (const std::exception& e) {
+        std::cerr << "Ошибка: " << e.what() << std::endl;
         return 1;
     }
 
-    return ok ? 0 : 1;
+    return 0;
 }
