@@ -8,6 +8,18 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
+# Санитайзеры для C/C++ (см. чеклист по оформлению репозитория, п.10):
+# cmake -B build -DHUFFMAN_ENABLE_SANITIZERS=ON
+# Собирает и линкует всё с AddressSanitizer + UndefinedBehaviorSanitizer.
+option(HUFFMAN_ENABLE_SANITIZERS "Build with AddressSanitizer + UndefinedBehaviorSanitizer" OFF)
+
+add_compile_options(-Wall -Wextra)
+
+if(HUFFMAN_ENABLE_SANITIZERS)
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer -g -O1)
+    add_link_options(-fsanitize=address,undefined)
+endif()
+
 include_directories(include)
 
 # Библиотека с основной логикой (используется и в приложении, и в тестах)

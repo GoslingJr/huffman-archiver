@@ -63,5 +63,5 @@ private:
     std::shared_ptr<Node> root_;
 
     void collectCodes(const std::shared_ptr<Node>& node, const std::string& code,
-                       std::unordered_map<unsigned char, std::string>& table) const;
+                      std::unordered_map<unsigned char, std::string>& table) const;
 };

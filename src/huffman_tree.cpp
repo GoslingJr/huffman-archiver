@@ -20,7 +20,8 @@ void HuffmanTree::build(const std::array<uint64_t, 256>& frequencies) {
         return a->symbol > b->symbol;
     };
 
-    std::priority_queue<std::shared_ptr<Node>, std::vector<std::shared_ptr<Node>>, decltype(compare)>
+    std::priority_queue<std::shared_ptr<Node>, std::vector<std::shared_ptr<Node>>,
+                        decltype(compare)>
         queue(compare);
 
     for (int symbol = 0; symbol < 256; ++symbol) {
@@ -75,7 +76,7 @@ std::unordered_map<unsigned char, std::string> HuffmanTree::buildCodeTable() con
 }
 
 void HuffmanTree::collectCodes(const std::shared_ptr<Node>& node, const std::string& code,
-                                std::unordered_map<unsigned char, std::string>& table) const {
+                               std::unordered_map<unsigned char, std::string>& table) const {
     if (node->isLeaf()) {
         table[node->symbol] = code;
         return;

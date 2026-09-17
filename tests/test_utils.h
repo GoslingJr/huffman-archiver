@@ -9,20 +9,20 @@
 inline int g_testsRun = 0;
 inline int g_testsFailed = 0;
 
-#define CHECK(cond)                                                                   \
-    do {                                                                              \
-        g_testsRun++;                                                                 \
-        if (!(cond)) {                                                                \
-            g_testsFailed++;                                                          \
+#define CHECK(cond)                                                                    \
+    do {                                                                               \
+        g_testsRun++;                                                                  \
+        if (!(cond)) {                                                                 \
+            g_testsFailed++;                                                           \
             std::cerr << "  [ОШИБКА] " << __FILE__ << ":" << __LINE__ << "  " << #cond \
-                      << std::endl;                                                   \
-        }                                                                             \
+                      << std::endl;                                                    \
+        }                                                                              \
     } while (0)
 
-#define RUN_TEST(fn)                                            \
-    do {                                                        \
-        std::cout << "Тест: " << #fn << std::endl;              \
-        fn();                                                   \
+#define RUN_TEST(fn)                               \
+    do {                                           \
+        std::cout << "Тест: " << #fn << std::endl; \
+        fn();                                      \
     } while (0)
 
 inline int reportResults() {

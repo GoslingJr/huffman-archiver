@@ -11,7 +11,7 @@ namespace {
 std::vector<unsigned char> readFile(const std::string& path) {
     std::ifstream in(path, std::ios::binary);
     return std::vector<unsigned char>((std::istreambuf_iterator<char>(in)),
-                                       std::istreambuf_iterator<char>());
+                                      std::istreambuf_iterator<char>());
 }
 
 void writeFile(const std::string& path, const std::vector<unsigned char>& data) {
@@ -23,7 +23,7 @@ void writeFile(const std::string& path, const std::vector<unsigned char>& data) 
 // Archiver теперь сообщает об ошибках исключениями, а не кодом возврата —
 // оборачиваем вызовы, чтобы использовать привычный CHECK(...).
 bool compressAndDecompress(const std::string& original, const std::string& compressed,
-                            const std::string& restored) {
+                           const std::string& restored) {
     try {
         Archiver::compress(original, compressed);
         Archiver::decompress(compressed, restored);
@@ -54,9 +54,8 @@ void checkRoundtrip(const std::string& name, const std::vector<unsigned char>& d
 }  // namespace
 
 void test_roundtrip_text() {
-    std::vector<unsigned char> data(
-        {'h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!',
-         ' ', 'h', 'e', 'l', 'l', 'o', ' ', 'a', 'g', 'a', 'i', 'n'});
+    std::vector<unsigned char> data({'h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!',
+                                     ' ', 'h', 'e', 'l', 'l', 'o', ' ', 'a', 'g', 'a', 'i', 'n'});
     checkRoundtrip("text", data);
 }
 

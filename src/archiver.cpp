@@ -16,7 +16,7 @@ void Archiver::compress(const std::string& inputPath, const std::string& outputP
     }
 
     std::vector<unsigned char> data((std::istreambuf_iterator<char>(in)),
-                                     std::istreambuf_iterator<char>());
+                                    std::istreambuf_iterator<char>());
     in.close();
 
     std::array<uint64_t, 256> frequencies{};

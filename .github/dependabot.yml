@@ -1,0 +1,9 @@
+version: 2
+updates:
+  # У проекта нет пакетных зависимостей (C++ без менеджера пакетов), но
+  # сами GitHub Actions в .github/workflows — тоже внешние зависимости,
+  # которые стоит обновлять.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
