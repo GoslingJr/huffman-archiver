@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/GoslingJr/huffman-archiver/actions/workflows/ci.yml/badge.svg)](https://github.com/GoslingJr/huffman-archiver/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/GoslingJr/huffman-archiver/actions/workflows/codeql.yml/badge.svg)](https://github.com/GoslingJr/huffman-archiver/actions/workflows/codeql.yml)
+[![CodeFactor](https://www.codefactor.io/repository/github/goslingjr/huffman-archiver/badge)](https://www.codefactor.io/repository/github/goslingjr/huffman-archiver)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/3f0171a5ec334e3897ed1f8a16c19143)](https://app.codacy.com/gh/GoslingJr/huffman-archiver/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![License: MIT](https://img.shields.io/github/license/GoslingJr/huffman-archiver)](LICENSE)
 
 Консольный архиватор файлов на C++17, реализующий классический алгоритм сжатия Хаффмана: строит дерево по частотам байтов во входном файле, кодирует данные префиксными кодами переменной длины и упаковывает их побитово. Учебный проект (курсовая практика).
