@@ -5,11 +5,16 @@
 среднеквадратичное отклонение. Результаты сохраняются в results.csv и
 в виде графиков (PNG) в текущей директории.
 
+Дополнительно замеряется степень сжатия gzip (модуль gzip из стандартной
+библиотеки Python, уровень сжатия 9) на тех же файлах — как точка сравнения
+с существующей открытой реализацией сжатия (см. README.md в этой папке).
+
 Использование:
     python3 generate_data.py     # сначала сгенерировать тестовые файлы
     python3 run_benchmark.py     # затем прогнать замеры
 """
 import csv
+import gzip
 import os
 import statistics
 import subprocess
@@ -37,6 +42,27 @@ def run_huffman(mode, input_path, output_path):
     return elapsed
 
 
+def benchmark_gzip(path, original_size):
+    """Степень сжатия и время сжатия gzip (уровень 9) на том же файле —
+    точка сравнения с существующей открытой реализацией."""
+    with open(path, "rb") as f:
+        data = f.read()
+
+    compress_times = []
+    compressed = b""
+    for _ in range(REPEATS):
+        start = time.perf_counter()
+        compressed = gzip.compress(data, compresslevel=9)
+        compress_times.append(time.perf_counter() - start)
+
+    compressed_size = len(compressed)
+    return {
+        "gzip_compressed_size": compressed_size,
+        "gzip_compression_ratio": original_size / compressed_size if compressed_size else float("inf"),
+        "gzip_compress_time_mean": statistics.mean(compress_times),
+    }
+
+
 def benchmark_file(path):
     os.makedirs(TMP_DIR, exist_ok=True)
     compressed_path = os.path.join(TMP_DIR, "bench.huf")
@@ -55,7 +81,7 @@ def benchmark_file(path):
     with open(path, "rb") as f1, open(restored_path, "rb") as f2:
         assert f1.read() == f2.read(), f"разжатый файл не совпадает с оригиналом: {path}"
 
-    return {
+    stats = {
         "original_size": original_size,
         "compressed_size": compressed_size,
         "compression_ratio": original_size / compressed_size if compressed_size else float("inf"),
@@ -64,6 +90,8 @@ def benchmark_file(path):
         "decompress_time_mean": statistics.mean(decompress_times),
         "decompress_time_stdev": statistics.stdev(decompress_times) if len(decompress_times) > 1 else 0.0,
     }
+    stats.update(benchmark_gzip(path, original_size))
+    return stats
 
 
 def parse_filename(filename):
@@ -102,6 +130,7 @@ def main():
     print(f"\nРезультаты сохранены в {csv_path}")
 
     make_plots(rows)
+    make_gzip_comparison_plot(rows)
 
 
 def make_plots(rows):
@@ -167,6 +196,37 @@ def make_plots(rows):
     plt.close()
 
     print("Графики сохранены: compression_ratio.png, compress_speed.png, decompress_speed.png")
+
+
+def make_gzip_comparison_plot(rows):
+    """Сравнение степени сжатия huffman и gzip на самом большом файле
+    (5 МБ) каждого типа данных — наглядно, насколько наш алгоритм близок
+    к существующей открытой реализации сжатия."""
+    import matplotlib.pyplot as plt
+
+    types = sorted(set(r["type"] for r in rows))
+    max_size = max(r["size"] for r in rows)
+    by_type = {r["type"]: r for r in rows if r["size"] == max_size}
+
+    huffman_ratios = [by_type[t]["compression_ratio"] for t in types]
+    gzip_ratios = [by_type[t]["gzip_compression_ratio"] for t in types]
+
+    x = range(len(types))
+    width = 0.35
+
+    plt.figure(figsize=(8, 5))
+    plt.bar([i - width / 2 for i in x], huffman_ratios, width, label="huffman (наш)", color="tab:blue")
+    plt.bar([i + width / 2 for i in x], gzip_ratios, width, label="gzip", color="tab:orange")
+    plt.xticks(list(x), types)
+    plt.ylabel("Степень сжатия (original/compressed)")
+    plt.title(f"huffman vs gzip: степень сжатия на файлах {max_size // 1_000_000} МБ")
+    plt.legend()
+    plt.grid(True, axis="y", alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(os.path.join(BENCH_DIR, "vs_gzip.png"), dpi=120)
+    plt.close()
+
+    print("График сравнения с gzip сохранён: vs_gzip.png")
 
 
 if __name__ == "__main__":
