@@ -84,6 +84,12 @@ void Archiver::decompress(const std::string& inputPath, const std::string& outpu
         return;  // исходный файл был пустым
     }
 
+    // Уникальных байтовых значений не может быть больше 256 — если заголовок
+    // утверждает обратное, файл повреждён или это не .huf-файл вовсе.
+    if (uniqueCount > 256) {
+        throw std::runtime_error("Повреждённый файл: некорректный заголовок (" + inputPath + ")");
+    }
+
     std::array<uint64_t, 256> frequencies{};
     for (uint16_t i = 0; i < uniqueCount; ++i) {
         unsigned char symbol = reader.readByte();
